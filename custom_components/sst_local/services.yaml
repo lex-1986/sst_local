@@ -4,21 +4,15 @@ set_schedule:
       integration: sst_local
       domain: climate
   fields:
-    days:
+    period:
       required: true
-      example: ["mon", "tue", "wed", "thu", "fri"]
+      example: weekdays
       selector:
         select:
-          multiple: true
-          translation_key: day
+          translation_key: period
           options:
-            - mon
-            - tue
-            - wed
-            - thu
-            - fri
-            - sat
-            - sun
+            - weekdays
+            - weekend
     points:
       required: true
       example: >-

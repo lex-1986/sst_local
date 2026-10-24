@@ -19,26 +19,21 @@
     }
   },
   "selector": {
-    "day": {
+    "period": {
       "options": {
-        "mon": "Monday",
-        "tue": "Tuesday",
-        "wed": "Wednesday",
-        "thu": "Thursday",
-        "fri": "Friday",
-        "sat": "Saturday",
-        "sun": "Sunday"
+        "weekdays": "Weekdays (Mon–Fri)",
+        "weekend": "Weekend (Sat–Sun)"
       }
     }
   },
   "services": {
     "set_schedule": {
       "name": "Set schedule",
-      "description": "Writes the auto mode schedule (4 points per day) for the selected days.",
+      "description": "Writes the auto mode schedule (4 points) for weekdays or weekend.",
       "fields": {
-        "days": {
-          "name": "Days",
-          "description": "Days the schedule is written to."
+        "period": {
+          "name": "Period",
+          "description": "Weekdays (Mon–Fri) or weekend (Sat–Sun)."
         },
         "points": {
           "name": "Points",

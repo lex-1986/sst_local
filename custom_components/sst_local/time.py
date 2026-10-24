@@ -8,9 +8,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import SSTLocalConfigEntry
+from .const import PERIODS
 from .entity import SSTLocalEntity
 from .protocol import POINTS_PER_DAY
-from .schedule import minutes_to_time, time_to_minutes
+from .schedule import minutes_to_time, period_points, time_to_minutes
 
 
 async def async_setup_entry(
@@ -19,35 +20,34 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities(SSTSchedulePointTime(coordinator, i) for i in range(POINTS_PER_DAY))
+    async_add_entities(
+        SSTSchedulePointTime(coordinator, period, i)
+        for period in PERIODS
+        for i in range(POINTS_PER_DAY)
+    )
 
 
 class SSTSchedulePointTime(SSTLocalEntity, TimeEntity):
-    """Время начала точки расписания выбранного дня."""
+    """Время начала точки расписания периода (будни / выходные)."""
 
     _attr_icon = "mdi:clock-outline"
     _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, coordinator, point: int) -> None:
-        super().__init__(coordinator, f"schedule_point_{point + 1}_time")
+    def __init__(self, coordinator, period: str, point: int) -> None:
+        super().__init__(coordinator, f"{period}_point_{point + 1}_time")
+        self._period = period
         self._point = point
-        self._attr_name = f"Расписание: точка {point + 1}, время"
-
-    @property
-    def _index(self) -> int:
-        return self.coordinator.selected_day * POINTS_PER_DAY + self._point
+        self._attr_name = f"{PERIODS[period][0]}: точка {point + 1}, время"
 
     @property
     def native_value(self) -> time | None:
-        chart = self.coordinator.data.chart
-        if self.coordinator.selected_day is None or self._index >= len(chart):
+        points = period_points(self.coordinator.data.chart, self._period)
+        if self._point >= len(points):
             return None
-        return minutes_to_time(chart[self._index][0])
+        return minutes_to_time(points[self._point][0])
 
     async def async_set_value(self, value: time) -> None:
-        index = self._index
+        def mutate(points: list[tuple[int, int]]) -> None:
+            points[self._point] = (time_to_minutes(value), points[self._point][1])
 
-        def mutate(chart: list[tuple[int, int]]) -> None:
-            chart[index] = (time_to_minutes(value), chart[index][1])
-
-        await self.coordinator.async_write_chart(mutate)
+        await self.coordinator.async_write_period(self._period, mutate)

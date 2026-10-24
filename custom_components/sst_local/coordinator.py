@@ -9,7 +9,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import SCAN_INTERVAL
-from .protocol import POINTS_PER_DAY, SSTError, SSTThermostatClient, ThermostatState
+from .protocol import SSTError, SSTThermostatClient, ThermostatState
+from .schedule import Points, period_points, set_period_points
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,21 +29,12 @@ class SSTLocalCoordinator(DataUpdateCoordinator[ThermostatState]):
             update_interval=SCAN_INTERVAL,
         )
         self.client = client
-        # День расписания, который правят сущности select/time/number (пн = 0)
-        self.selected_day: int | None = None
 
     async def _async_update_data(self) -> ThermostatState:
         try:
-            state = await self.client.read_state()
+            return await self.client.read_state()
         except SSTError as err:
             raise UpdateFailed(str(err)) from err
-        if self.selected_day is None:
-            self.selected_day = state.day_of_week
-        return state
-
-    def set_selected_day(self, day: int) -> None:
-        self.selected_day = day
-        self.async_update_listeners()
 
     async def async_write_settings(self, mutate) -> None:
         """Read fresh S block, apply mutate(bytearray), write it back, refresh."""
@@ -55,18 +47,19 @@ class SSTLocalCoordinator(DataUpdateCoordinator[ThermostatState]):
             raise HomeAssistantError(str(err)) from err
         await self.async_request_refresh()
 
-    async def async_write_chart(self, mutate: Callable[[list[tuple[int, int]]], None]) -> None:
-        """Read fresh schedule, apply mutate(list), check point order, write it back, refresh."""
+    async def async_write_period(self, period: str, mutate: Callable[[Points], None]) -> None:
+        """Read fresh schedule, apply mutate() to the 4 points of the period, write them to all its days."""
         try:
             state = await self.client.read_state()
             chart = list(state.chart)
-            mutate(chart)
-            for day in range(len(chart) // POINTS_PER_DAY):
-                times = [t for t, _ in chart[day * POINTS_PER_DAY:(day + 1) * POINTS_PER_DAY]]
-                if times != sorted(times):
-                    raise HomeAssistantError(
-                        "Время точек расписания внутри дня должно идти по возрастанию"
-                    )
+            points = list(period_points(chart, period))
+            mutate(points)
+            times = [t for t, _ in points]
+            if times != sorted(times):
+                raise HomeAssistantError(
+                    "Время точек расписания должно идти по возрастанию"
+                )
+            set_period_points(chart, period, points)
             await self.client.write_chart(chart)
         except (SSTError, ValueError) as err:
             raise HomeAssistantError(str(err)) from err

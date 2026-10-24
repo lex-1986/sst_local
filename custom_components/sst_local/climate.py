@@ -19,14 +19,14 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import SSTLocalConfigEntry
 from .const import (
-    ATTR_DAYS,
+    ATTR_PERIOD,
     ATTR_POINTS,
     ATTR_TIME,
-    DAY_KEYS,
     MAX_MANUAL_TEMP,
     MAX_VACATION_TEMP,
     MIN_MANUAL_TEMP,
     MIN_VACATION_TEMP,
+    PERIODS,
     SERVICE_GET_SCHEDULE,
     SERVICE_SET_SCHEDULE,
 )
@@ -42,7 +42,7 @@ from .protocol import (
 from .schedule import chart_as_dict, time_to_minutes
 
 SET_SCHEDULE_SCHEMA = {
-    vol.Required(ATTR_DAYS): vol.All(cv.ensure_list, [vol.In(DAY_KEYS)]),
+    vol.Required(ATTR_PERIOD): vol.In(list(PERIODS)),
     vol.Required(ATTR_POINTS): vol.All(
         cv.ensure_list,
         [
@@ -152,17 +152,15 @@ class SSTLocalClimate(SSTLocalEntity, ClimateEntity):
             "schedule": chart_as_dict(state.chart),
         }
 
-    async def async_set_schedule(self, days: list[str], points: list[dict[str, Any]]) -> None:
+    async def async_set_schedule(self, period: str, points: list[dict[str, Any]]) -> None:
         new_points = sorted(
             (time_to_minutes(p[ATTR_TIME]), p[ATTR_TEMPERATURE]) for p in points
         )
 
-        def mutate(chart: list[tuple[int, int]]) -> None:
-            for key in days:
-                day = DAY_KEYS.index(key)
-                chart[day * POINTS_PER_DAY:(day + 1) * POINTS_PER_DAY] = new_points
+        def mutate(current: list[tuple[int, int]]) -> None:
+            current[:] = new_points
 
-        await self.coordinator.async_write_chart(mutate)
+        await self.coordinator.async_write_period(period, mutate)
 
     async def async_get_schedule(self) -> ServiceResponse:
         return chart_as_dict(self.coordinator.data.chart)

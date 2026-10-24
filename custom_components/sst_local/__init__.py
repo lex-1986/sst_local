@@ -10,10 +10,8 @@ from .protocol import DEFAULT_PORT, SSTThermostatClient
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
-    Platform.BUTTON,
     Platform.CLIMATE,
     Platform.NUMBER,
-    Platform.SELECT,
     Platform.SENSOR,
     Platform.TIME,
 ]
