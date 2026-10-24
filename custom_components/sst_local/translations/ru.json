@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SST Local (MCS350)",
+        "description": "Термостат должен быть доступен из Home Assistant по TCP (порт 6350).",
+        "data": {
+          "name": "Название",
+          "host": "IP-адрес",
+          "port": "Порт"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Не удалось подключиться к термостату"
+    },
+    "abort": {
+      "already_configured": "Этот термостат уже добавлен"
+    }
+  }
+}

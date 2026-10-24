@@ -1,0 +1,6 @@
+{
+  "name": "SST Local (MCS350)",
+  "homeassistant": "2025.2.0",
+  "country": "RU",
+  "render_readme": true
+}

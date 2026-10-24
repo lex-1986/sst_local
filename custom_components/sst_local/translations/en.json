@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SST Local (MCS350)",
+        "description": "Thermostat must be reachable from Home Assistant over TCP (port 6350).",
+        "data": {
+          "name": "Name",
+          "host": "IP address",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the thermostat"
+    },
+    "abort": {
+      "already_configured": "This thermostat is already configured"
+    }
+  }
+}
