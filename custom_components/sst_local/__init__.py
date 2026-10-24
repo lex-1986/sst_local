@@ -8,7 +8,15 @@ from .const import CONF_HOST, CONF_PORT
 from .coordinator import SSTLocalCoordinator
 from .protocol import DEFAULT_PORT, SSTThermostatClient
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.CLIMATE, Platform.SENSOR]
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.CLIMATE,
+    Platform.NUMBER,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.TIME,
+]
 
 type SSTLocalConfigEntry = ConfigEntry[SSTLocalCoordinator]
 

@@ -17,5 +17,38 @@
     "abort": {
       "already_configured": "This thermostat is already configured"
     }
+  },
+  "selector": {
+    "day": {
+      "options": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "Set schedule",
+      "description": "Writes the auto mode schedule (4 points per day) for the selected days.",
+      "fields": {
+        "days": {
+          "name": "Days",
+          "description": "Days the schedule is written to."
+        },
+        "points": {
+          "name": "Points",
+          "description": "Exactly 4 points: list of {time: \"HH:MM\", temperature: 0-45}. Each temperature applies from its time until the next point."
+        }
+      }
+    },
+    "get_schedule": {
+      "name": "Get schedule",
+      "description": "Returns the current auto mode schedule of the thermostat."
+    }
   }
 }

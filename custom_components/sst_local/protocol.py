@@ -18,11 +18,18 @@ import struct
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_PORT = 6350
-TIMEOUT = 10
+TIMEOUT = 5
+RETRY_DELAY = 1
 
 MODE_MANUAL = 0
 MODE_CHART = 1
 MODE_VACATION = 2
+
+DAYS = 7
+POINTS_PER_DAY = 4
+CHART_POINTS = DAYS * POINTS_PER_DAY
+MIN_CHART_TEMP = 0
+MAX_CHART_TEMP = 45
 
 
 class SSTError(Exception):
@@ -173,6 +180,16 @@ class SSTThermostatClient:
         self._lock = asyncio.Lock()
 
     async def _request(self, frame: bytes) -> bytes:
+        # Устройство обслуживает одно соединение за раз: при столкновении с другим
+        # клиентом (приложение, второй опрос) повторяем один раз. Записи идемпотентны.
+        try:
+            return await self._request_once(frame)
+        except SSTError as err:
+            _LOGGER.debug("Повтор запроса к %s после ошибки: %s", self.host, err)
+            await asyncio.sleep(RETRY_DELAY)
+            return await self._request_once(frame)
+
+    async def _request_once(self, frame: bytes) -> bytes:
         async with self._lock:
             try:
                 async with asyncio.timeout(TIMEOUT):
@@ -207,3 +224,20 @@ class SSTThermostatClient:
         if len(settings) != 7:
             raise ValueError("Блок S должен быть 7 байт")
         await self.write(b"S\x00\x07" + bytes(settings))
+
+    async def write_chart(self, chart: list[tuple[int, int]]) -> None:
+        """Записать расписание целиком: 7 дней x 4 точки (минуты от полуночи, °C), пн = день 0."""
+        await self.write(b"C" + struct.pack(">H", CHART_POINTS * 3) + encode_chart(chart))
+
+
+def encode_chart(chart: list[tuple[int, int]]) -> bytes:
+    if len(chart) != CHART_POINTS:
+        raise ValueError(f"Расписание должно содержать {CHART_POINTS} точек")
+    data = bytearray()
+    for minutes, temperature in chart:
+        if not 0 <= minutes <= 1440:
+            raise ValueError(f"Неверное время точки расписания: {minutes} мин")
+        if not MIN_CHART_TEMP <= temperature <= MAX_CHART_TEMP:
+            raise ValueError(f"Неверная температура точки расписания: {temperature}")
+        data += struct.pack(">HB", minutes, temperature)
+    return bytes(data)

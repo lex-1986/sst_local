@@ -10,14 +10,54 @@ from homeassistant.components.climate import (
     HVACAction,
     HVACMode,
 )
+import voluptuous as vol
+
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceResponse, SupportsResponse
+from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import SSTLocalConfigEntry
-from .const import MAX_MANUAL_TEMP, MAX_VACATION_TEMP, MIN_MANUAL_TEMP, MIN_VACATION_TEMP
+from .const import (
+    ATTR_DAYS,
+    ATTR_POINTS,
+    ATTR_TIME,
+    DAY_KEYS,
+    MAX_MANUAL_TEMP,
+    MAX_VACATION_TEMP,
+    MIN_MANUAL_TEMP,
+    MIN_VACATION_TEMP,
+    SERVICE_GET_SCHEDULE,
+    SERVICE_SET_SCHEDULE,
+)
 from .entity import SSTLocalEntity
-from .protocol import MODE_CHART, MODE_MANUAL, MODE_VACATION
+from .protocol import (
+    MAX_CHART_TEMP,
+    MIN_CHART_TEMP,
+    MODE_CHART,
+    MODE_MANUAL,
+    MODE_VACATION,
+    POINTS_PER_DAY,
+)
+from .schedule import chart_as_dict, time_to_minutes
+
+SET_SCHEDULE_SCHEMA = {
+    vol.Required(ATTR_DAYS): vol.All(cv.ensure_list, [vol.In(DAY_KEYS)]),
+    vol.Required(ATTR_POINTS): vol.All(
+        cv.ensure_list,
+        [
+            vol.Schema(
+                {
+                    vol.Required(ATTR_TIME): cv.time,
+                    vol.Required(ATTR_TEMPERATURE): vol.All(
+                        vol.Coerce(int), vol.Range(MIN_CHART_TEMP, MAX_CHART_TEMP)
+                    ),
+                }
+            )
+        ],
+        vol.Length(min=POINTS_PER_DAY, max=POINTS_PER_DAY),
+    ),
+}
 
 # Индексы в 7-байтовом блоке S
 S_STATUS = 0
@@ -32,6 +72,14 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     async_add_entities([SSTLocalClimate(entry.runtime_data)])
+
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_SET_SCHEDULE, SET_SCHEDULE_SCHEMA, "async_set_schedule"
+    )
+    platform.async_register_entity_service(
+        SERVICE_GET_SCHEDULE, None, "async_get_schedule", supports_response=SupportsResponse.ONLY
+    )
 
 
 class SSTLocalClimate(SSTLocalEntity, ClimateEntity):
@@ -101,7 +149,23 @@ class SSTLocalClimate(SSTLocalEntity, ClimateEntity):
             "temperature_vacation": state.temp_vacation,
             "temperature_chart": state.chart_temperature,
             "temperature_air_limit": state.temp_air_limit,
+            "schedule": chart_as_dict(state.chart),
         }
+
+    async def async_set_schedule(self, days: list[str], points: list[dict[str, Any]]) -> None:
+        new_points = sorted(
+            (time_to_minutes(p[ATTR_TIME]), p[ATTR_TEMPERATURE]) for p in points
+        )
+
+        def mutate(chart: list[tuple[int, int]]) -> None:
+            for key in days:
+                day = DAY_KEYS.index(key)
+                chart[day * POINTS_PER_DAY:(day + 1) * POINTS_PER_DAY] = new_points
+
+        await self.coordinator.async_write_chart(mutate)
+
+    async def async_get_schedule(self) -> ServiceResponse:
+        return chart_as_dict(self.coordinator.data.chart)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         def mutate(s: bytearray) -> None:
