@@ -34,7 +34,7 @@ SST / Теплолюкс **MCS350** — без облака SST Cloud.
 - Атрибуты: `temperature_manual`, `temperature_vacation`, `temperature_chart`,
   `temperature_air_limit`, `schedule` (всё расписание).
 
-Опрос — каждые 30 секунд.
+Опрос — каждые 60 секунд.
 
 ## Расписание автоматического режима
 

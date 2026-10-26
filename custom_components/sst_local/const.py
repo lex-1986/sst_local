@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 DOMAIN = "sst_local"
-SCAN_INTERVAL = timedelta(seconds=30)
+SCAN_INTERVAL = timedelta(seconds=60)
 
 CONF_HOST = "host"
 CONF_PORT = "port"
